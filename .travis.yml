@@ -1,5 +1,6 @@
 language: node_js
 node_js:
+  - '14'
   - '12'
   - '10'
   - '8'
@@ -11,6 +12,6 @@ cache:
 services:
   - mongodb
 before_script:
-  - cp .env.example .env
+  - cp ./config/.env.example .env
 os:
   - linux

@@ -66,10 +66,10 @@ npm install
 
 ### Setting up environments
 
-1.  You will find a file named `.env.example` on root directory of project.
+1.  You will find a file named `.env.example` in config/ directory of project.
 2.  Create a new file by copying and pasting the file and then renaming it to just `.env`
     ```bash
-    cp .env.example .env
+    cp ./config/.env.example .env
     ```
 3.  The file `.env` is already ignored, so you never commit your credentials.
 4.  Change the values of the file to your environment. Helpful comments added to `.env.example` file to understand the constants.

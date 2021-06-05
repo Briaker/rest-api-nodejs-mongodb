@@ -1,0 +1,31 @@
+version: '3.7'
+
+services:
+  node:
+    container_name: nodeapp
+    image: nodeapp
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        PACKAGES: "nano wget curl"
+    ports:
+      - "3000:3000"
+    networks:
+      - nodeapp-network
+    volumes:
+      - ./logs:/var/www/logs
+    env_file:
+      - ./config/.env.example
+    depends_on: 
+      - mongodb
+      
+  mongodb:
+    container_name: mongodb
+    image: mongo
+    networks:
+      - nodeapp-network
+
+networks:
+  nodeapp-network:
+    driver: bridge
