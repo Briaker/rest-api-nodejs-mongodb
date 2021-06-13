@@ -1,6 +1,6 @@
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const { validationResult } = require("express-validator");
+const expressValidator = require("express-validator");
 
 const mailer = require("#app/helpers/mailer");
 const utility = require("#app/helpers/utility");
@@ -20,7 +20,7 @@ exports.register = [
   (req, res) => {
     try {
       // Extract the validation errors from a request.
-      const errors = validationResult(req);
+      const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
         // Display sanitized values/errors messages.
         return apiResponse.validationErrorWithData(
@@ -89,7 +89,7 @@ exports.login = [
   ...loginValidator,
   (req, res) => {
     try {
-      const errors = validationResult(req);
+      const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
         return apiResponse.validationErrorWithData(
           res,
@@ -143,7 +143,7 @@ exports.login = [
                 } else {
                   return apiResponse.unauthorizedResponse(
                     res,
-                    "Email or Password wrong."
+                    "Wrong Email or Password."
                   );
                 }
               }
@@ -151,7 +151,7 @@ exports.login = [
           } else {
             return apiResponse.unauthorizedResponse(
               res,
-              "Email or Password wrong."
+              "Wrong Email or Password."
             );
           }
         });
@@ -166,7 +166,7 @@ exports.verifyConfirm = [
   ...confirmValidator,
   (req, res) => {
     try {
-      const errors = validationResult(req);
+      const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
         return apiResponse.validationErrorWithData(
           res,
@@ -223,7 +223,7 @@ exports.resendConfirmOtp = [
   ...resendConfirmValidator,
   (req, res) => {
     try {
-      const errors = validationResult(req);
+      const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
         return apiResponse.validationErrorWithData(
           res,

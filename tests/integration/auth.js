@@ -1,5 +1,5 @@
 const sinon = require("sinon");
-const validationResultModule = require("express-validator");
+const expressValidator = require("express-validator");
 
 const mailer = require("#app/helpers/mailer");
 const UserModel = require("#app/models/UserModel");
@@ -12,6 +12,11 @@ const testData = {
   firstName: "Bob",
   lastName: "Barker",
   email: "bob.barker@thepriceisright.com",
+  password: "spadeandneuter"
+};
+
+const invalidTestData = {
+  email: "bob.burgers@pattys.com",
   password: "spadeandneuter"
 };
 
@@ -144,8 +149,7 @@ describe("Auth", () => {
     const validate_error_sandbox = sinon.createSandbox();
 
     before(() => {
-      // validate_error_sandbox.stub(validationResult).throws();
-      validate_error_sandbox.stub(validationResultModule, "validationResult").throws();
+      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
     });
 
     after(() => {
@@ -164,6 +168,34 @@ describe("Auth", () => {
     });
   });
 
+
+  describe("/POST Verify Confirm OTP Wrong Email", () => {
+    it("It should return an email not found validation error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: invalidTestData.email, otp: testData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(401);
+          done();
+        });
+    });
+  });
+
+  describe("/POST Verify Confirm OTP Wrong OTP", () => {
+    it("It should return a invalid OTP validation error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: invalidTestData.email, otp: "xxxx" })
+        .end((err, res) => {
+          res.should.have.status(401);
+          done();
+        });
+    });
+  });
+
+
   describe("/POST Verify Confirm OTP", () => {
     it("It should verify confirm OTP", (done) => {
       chai
@@ -172,6 +204,21 @@ describe("Auth", () => {
         .send({ email: testData.email, otp: testData.confirmOTP })
         .end((err, res) => {
           res.should.have.status(200);
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Resend Verify OTP", () => {
+    it("It should notify that the account is already confirmed", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: testData.email, otp: testData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(401);
+          res.should.have.nested.property("body.message").eql("Account already confirmed.");
           done();
         });
     });
@@ -194,6 +241,20 @@ describe("Auth", () => {
 
 
   describe("/POST Invalid Resend Confirmed OTP", () => {
+    it("It should notify that the email provided is not found", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/resend-verify-otp")
+        .send({ email: invalidTestData.email })
+        .end((err, res) => {
+          res.should.have.status(401);
+          res.should.have.nested.property("body.message").eql("Specified email not found.");
+          done();
+        });
+    });
+  });
+
+  describe("/POST Invalid Resend Confirmed OTP", () => {
     it("It should notify that the email provided is invalid", (done) => {
       chai
         .request(server)
@@ -207,13 +268,36 @@ describe("Auth", () => {
     });
   });
 
+  describe("/POST Invalid Resend Confirmed OTP", () => {
+    const validate_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
+    });
+
+    after(() => {
+      validate_error_sandbox.restore();
+    });
+
+    it("It should return a server error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/resend-verify-otp")
+        .send({ email: "" })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
 
   describe("/POST Invalid Login", () => {
-    it("It should send validation error for Login", (done) => {
+    it("it should send validation error for Login", (done) => {
       chai
         .request(server)
         .post("/api/auth/login")
-        .send({ email: testData.email })
+        .send({ email: "" })
         .end((err, res) => {
           res.should.have.status(400);
           done();
@@ -221,11 +305,9 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
+
   describe("/POST Bad Login", () => {
-    it("it should Send failed user Login", (done) => {
+    it("it should send failed user Login", (done) => {
       chai
         .request(server)
         .post("/api/auth/login")
@@ -237,9 +319,7 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
+
   describe("/POST Successful Login", () => {
     it("it should do user Login", (done) => {
       chai
