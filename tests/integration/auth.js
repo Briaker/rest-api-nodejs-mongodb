@@ -1,7 +1,7 @@
-const { chai, server, should } = require("./testConfig");
+const { chai, server, should } = require("../helpers/testConfig");
 const UserModel = require("../models/UserModel");
 
-const dbHandler = require("./db-handler");
+const dbHandler = require("../db-handler");
 
 /**
  * Test cases to test all the authentication APIs

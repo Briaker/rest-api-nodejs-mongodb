@@ -1,4 +1,4 @@
-const { chai, server, should } = require("./testConfig");
+const { chai, server, should } = require("../helpers/testConfig");
 const BookModel = require("../models/BookModel");
 
 /**
