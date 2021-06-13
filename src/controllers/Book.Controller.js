@@ -1,12 +1,12 @@
-const Book = require("../models/BookModel");
-const { body, validationResult } = require("express-validator");
-const { sanitizeBody } = require("express-validator");
-const apiResponse = require("../helpers/apiResponse");
-const auth = require("../middlewares/jwt");
-var mongoose = require("mongoose");
+const mongoose = require("mongoose");
+const { body, validationResult, sanitizeBody } = require("express-validator");
+
+const auth = require("#app/middlewares/jwt");
+const Book = require("#app/models/BookModel");
+const apiResponse = require("#app/helpers/apiResponse");
+
 mongoose.set("useFindAndModify", false);
 
-// Book Schema
 function BookData(data) {
   this.id = data._id;
   this.title = data.title;

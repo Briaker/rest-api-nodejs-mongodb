@@ -1,7 +1,7 @@
-var express = require("express");
-const BookController = require("../controllers/Book.Controller");
+const express = require("express");
+const BookController = require("#app/controllers/Book.Controller");
 
-var router = express.Router();
+const router = express.Router();
 
 router.get("/", BookController.bookList);
 router.get("/:id", BookController.bookDetail);

@@ -19,67 +19,60 @@ exports.register = [
   ...registerValidator,
   (req, res) => {
     try {
-      // Extract the validation errors from a request.
       const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
-        // Display sanitized values/errors messages.
         return apiResponse.validationErrorWithData(
           res,
           "Validation Error.",
           errors.array()
         );
       } else {
-        //hash input password
-        bcrypt.hash(req.body.password, 10, function (err, hash) {
-          // generate OTP for confirmation
-          let otp = utility.randomNumber(4);
-          // Create User object with escaped and trimmed data
-          var user = new UserModel({
+        bcrypt.hash(req.body.password, 10, async (error, hash) => {
+          if (error) {
+            return apiResponse.ErrorResponse(res, error);
+          }
+
+          const otp = utility.randomNumber(4);
+          const user = new UserModel({
             firstName: req.body.firstName,
             lastName: req.body.lastName,
             email: req.body.email,
             password: hash,
-            confirmOTP: otp,
+            confirmOTP: otp
           });
-          // Html email body
-          let html =
-            "<p>Please Confirm your Account.</p><p>OTP: " + otp + "</p>";
-          // Send confirmation email
-          mailer
-            .send(
+
+          // Html email body TODO: create separate module for email bodies and use templates
+          const html = `<p>Please Confirm your Account.</p><p>OTP: ${otp}</p>`;
+
+          try {
+            await mailer.send(
               constants.confirmEmails.from,
               req.body.email,
               "Confirm Account",
               html
-            )
-            .then(function () {
-              // Save user.
-              user.save(function (err) {
-                if (err) {
-                  return apiResponse.ErrorResponse(res, err);
-                }
-                let userData = {
-                  _id: user._id,
-                  firstName: user.firstName,
-                  lastName: user.lastName,
-                  email: user.email,
-                };
-                return apiResponse.successResponseWithData(
-                  res,
-                  "Registration Success.",
-                  userData
-                );
-              });
-            })
-            .catch((err) => {
-              console.log(err);
-              return apiResponse.ErrorResponse(res, err);
-            });
+            );
+            await user.save();
+          }
+          catch (error) {
+            return apiResponse.ErrorResponse(res, error);
+          }
+
+          let userData = {
+            _id: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+          };
+
+          return apiResponse.successResponseWithData(
+            res,
+            "Registration Success.",
+            userData
+          );
         });
       }
-    } catch (err) {
-      //throw error in json response with status 500.
-      return apiResponse.ErrorResponse(res, err);
+    } catch (error) {
+      return apiResponse.ErrorResponse(res, error);
     }
   },
 ];
@@ -103,7 +96,7 @@ exports.login = [
             bcrypt.compare(
               req.body.password,
               user.password,
-              function (err, same) {
+              (err, same) => {
                 if (same) {
                   //Check account confirmation.
                   if (user.isConfirmed) {
@@ -164,7 +157,7 @@ exports.login = [
 
 exports.verifyConfirm = [
   ...confirmValidator,
-  (req, res) => {
+  async (req, res) => {
     try {
       const errors = expressValidator.validationResult(req);
       if (!errors.isEmpty()) {
@@ -174,43 +167,42 @@ exports.verifyConfirm = [
           errors.array()
         );
       } else {
-        var query = { email: req.body.email };
-        UserModel.findOne(query).then((user) => {
-          if (user) {
-            //Check already confirm or not.
-            if (!user.isConfirmed) {
-              //Check account confirmation.
-              if (user.confirmOTP == req.body.otp) {
-                //Update user as confirmed
-                UserModel.findOneAndUpdate(query, {
-                  isConfirmed: 1,
-                  confirmOTP: null,
-                }).catch((err) => {
-                  return apiResponse.ErrorResponse(res, err);
-                });
-                return apiResponse.successResponse(
-                  res,
-                  "Account confirmed success."
-                );
-              } else {
-                return apiResponse.unauthorizedResponse(
-                  res,
-                  "Otp does not match"
-                );
+        const user = await UserModel.findOne({ email: req.body.email });
+
+        if (user) {
+          if (!user.isConfirmed) {
+            if (user.confirmOTP == req.body.otp) {
+              try {
+                user.isConfirmed = 1;
+                user.confirmOTP = null;
+                await user.save();
               }
+              catch (error) {
+                return apiResponse.ErrorResponse(res, error);
+              }
+
+              return apiResponse.successResponse(
+                res,
+                "Account confirmed success."
+              );
             } else {
               return apiResponse.unauthorizedResponse(
                 res,
-                "Account already confirmed."
+                "Otp does not match"
               );
             }
           } else {
             return apiResponse.unauthorizedResponse(
               res,
-              "Specified email not found."
+              "Account already confirmed."
             );
           }
-        });
+        } else {
+          return apiResponse.unauthorizedResponse(
+            res,
+            "Specified email not found."
+          );
+        }
       }
     } catch (err) {
       return apiResponse.ErrorResponse(res, err);

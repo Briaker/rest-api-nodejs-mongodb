@@ -13,6 +13,7 @@ const apiResponse = require("#app/helpers/apiResponse");
 
 const app = express();
 
+/* istanbul ignore next */
 if (process.env.NODE_ENV !== "test") {
   app.use(logger("dev"));
 }
@@ -27,13 +28,14 @@ app.use(cors());
 app.use("/", indexRouter);
 app.use("/api/", apiRouter);
 
-app.all("*", function (req, res) {
+
+app.all("*", (req, res) => {
   return apiResponse.notFoundResponse(res, "Page not found");
 });
 
 app.use((err, req, res) => {
   if (err.name == "UnauthorizedError") {
-    return apiResponse.unauthorizedResponse(res, err.message);
+    return apiResponse.unauthorizedResponse(res, "err.message");
   }
 });
 

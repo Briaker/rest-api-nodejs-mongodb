@@ -1,4 +1,5 @@
 const sinon = require("sinon");
+const bcrypt = require("bcrypt");
 const expressValidator = require("express-validator");
 
 const mailer = require("#app/helpers/mailer");
@@ -6,7 +7,7 @@ const UserModel = require("#app/models/UserModel");
 const dbHandler = require("#tests/helpers/dbHandler");
 const { chai, server } = require("#tests/helpers/testConfig");
 
-const sandbox = sinon.createSandbox();
+
 
 const testData = {
   firstName: "Bob",
@@ -15,28 +16,33 @@ const testData = {
   password: "spadeandneuter"
 };
 
+
 const invalidTestData = {
+  firstName: "Bob",
+  lastName: "Barker",
   email: "bob.burgers@pattys.com",
-  password: "spadeandneuter"
+  password: "spadeandneuter",
+  confirmOTP: "fake"
 };
 
+
 describe("Auth", () => {
+  const send_stub_sandbox = sinon.createSandbox();
+
   before(async () => {
     await dbHandler.clearCollection(UserModel);
     // eslint-disable-next-line no-unused-vars
     const sendStub = (from, to, subject, html) => Promise.resolve();
-    sandbox.replace(mailer, "send", sendStub);
+    send_stub_sandbox.replace(mailer, "send", sendStub);
   });
 
   after(() => {
-    sandbox.restore();
+    send_stub_sandbox.restore();
   });
 
-  /*
-   * Test the /POST route
-   */
+
   describe("/POST Invalid Register", () => {
-    it("It should send validation error for Register", (done) => {
+    it("it should send validation error for Register", (done) => {
       chai
         .request(server)
         .post("/api/auth/register")
@@ -48,9 +54,55 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
+  describe("/POST Register Server Error", () => {
+    const validate_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
+    });
+
+    after(() => {
+      validate_error_sandbox.restore();
+    });
+
+    it("it should return a server error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/register")
+        .send({ email: testData.email })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
+  describe("/POST Invalid Register", () => {
+    const bcrypt_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      bcrypt_error_sandbox.replace(bcrypt, "hash", (password, salt, callback) => {
+        callback("ERROR");
+      });
+    });
+
+    after(() => {
+      bcrypt_error_sandbox.restore();
+    });
+
+    it("it should return server error for Register", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/register")
+        .send(testData)
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
+
   describe("/POST Successful Register", () => {
     it("It should Register user", (done) => {
       chai
@@ -83,9 +135,32 @@ describe("Auth", () => {
     });
   });
 
+  describe("/POST Register Server Error", () => {
+    const save_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      save_error_sandbox.replace(UserModel.prototype, "save", (callback) => {callback("ERROR");});
+    });
+
+    after(() => {
+      save_error_sandbox.restore();
+    });
+
+    it("it should return a server error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/register")
+        .send(invalidTestData)
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
 
   describe("/POST Unconfirmed Login", () => {
-    it("it should Send account not confirmed notice.", (done) => {
+    it("it should send account not confirmed notice.", (done) => {
       chai
         .request(server)
         .post("/api/auth/login")
@@ -146,17 +221,17 @@ describe("Auth", () => {
 
 
   describe("/POST Verify Confirm OTP Error", () => {
-    const validate_error_sandbox = sinon.createSandbox();
+    const save_error_sandbox = sinon.createSandbox();
 
     before(() => {
-      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
+      save_error_sandbox.replace(UserModel.prototype, "save", (callback) => {callback("ERROR");});
     });
 
     after(() => {
-      validate_error_sandbox.restore();
+      save_error_sandbox.restore();
     });
 
-    it("It should return a server error", (done) => {
+    it("it should return a server error", (done) => {
       chai
         .request(server)
         .post("/api/auth/verify-otp")
@@ -169,6 +244,42 @@ describe("Auth", () => {
   });
 
 
+  describe("/POST Verify Confirm OTP Error", () => {
+    const validate_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
+    });
+
+    after(() => {
+      validate_error_sandbox.restore();
+    });
+
+    it("it should return a server error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: testData.email, otp: testData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
+  describe("/POST Verify Confirm OTP Wrong OTP", () => {
+    it("It should return a mismatched OTP validation error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: testData.email, otp: invalidTestData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(401);
+          done();
+        });
+    });
+  });
+
   describe("/POST Verify Confirm OTP Wrong Email", () => {
     it("It should return an email not found validation error", (done) => {
       chai
@@ -177,6 +288,19 @@ describe("Auth", () => {
         .send({ email: invalidTestData.email, otp: testData.confirmOTP })
         .end((err, res) => {
           res.should.have.status(401);
+          done();
+        });
+    });
+  });
+
+  describe("/POST Verify Confirm OTP Missing Email", () => {
+    it("It should return an email not found validation error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: "", otp: testData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(400);
           done();
         });
     });
@@ -306,14 +430,54 @@ describe("Auth", () => {
   });
 
 
+  describe("/POST Invalid Login", () => {
+    const validate_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      validate_error_sandbox.stub(expressValidator, "validationResult").throws();
+    });
+
+    after(() => {
+      validate_error_sandbox.restore();
+    });
+
+    it("it should return a server error for Login", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/login")
+        .send({ email: "" })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
+
   describe("/POST Bad Login", () => {
-    it("it should send failed user Login", (done) => {
+    it("it should return wrong user error", (done) => {
       chai
         .request(server)
         .post("/api/auth/login")
         .send({ email: "admin@admin.com", password: "1234" })
         .end((err, res) => {
           res.should.have.status(401);
+          res.body.should.have.property("message").eql("Wrong Email or Password.");
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Bad Login", () => {
+    it("it should return wrong password error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/login")
+        .send({ email: testData.email, password: "wrong-password-yo" })
+        .end((err, res) => {
+          res.should.have.status(401);
+          res.body.should.have.property("message").eql("Wrong Email or Password.");
           done();
         });
     });
@@ -333,4 +497,27 @@ describe("Auth", () => {
         });
     });
   });
+
+  describe("/POST Bad Login", () => {
+    before(async () => {
+      await UserModel.findOneAndUpdate({email: testData.email}, {status: false});
+    });
+
+    after(async () => {
+      await UserModel.findOneAndUpdate({email: testData.email}, {status: true});
+    });
+
+    it("it should return account inactive error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/login")
+        .send({ email: testData.email, password: testData.password })
+        .end((err, res) => {
+          res.should.have.status(401);
+          res.body.should.have.property("message").eql("Account is not active. Please contact admin.");
+          done();
+        });
+    });
+  });
+
 });
