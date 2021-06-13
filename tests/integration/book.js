@@ -1,29 +1,16 @@
-const { chai, server, should } = require("../helpers/testConfig");
-const BookModel = require("../models/BookModel");
-
-/**
- * Test cases to test all the book APIs
- * Covered Routes:
- * (1) Login
- * (2) Store book
- * (3) Get all books
- * (4) Get single book
- * (5) Update book
- * (6) Delete book
- */
+const { chai, server } = require("#tests/helpers/testConfig");
+const BookModel = require("#app/models/BookModel");
+const dbHandler = require("#tests/helpers/dbHandler");
 
 describe("Book", () => {
-  //Before each test we empty the database
-  before((done) => {
-    BookModel.deleteMany({}, (err) => {
-      done();
-    });
+  before(async () => {
+    await dbHandler.clearCollection(BookModel);
   });
 
   // Prepare data for testing
   const userTestData = {
-    password: "Test@123",
-    email: "maitraysuthar@test12345.com",
+    email: "bob.barker@thepriceisright.com",
+    password: "spadeandneuter"
   };
 
   // Prepare data for testing

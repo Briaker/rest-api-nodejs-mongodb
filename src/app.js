@@ -9,9 +9,9 @@ const logger = require("morgan");
 const express = require("express");
 const cookieParser = require("cookie-parser");
 
-const apiRouter = require("./src/routes/api");
-const indexRouter = require("./src/routes/index");
-const apiResponse = require("./helpers/apiResponse");
+const apiRouter = require("#app/routes/api");
+const indexRouter = require("#app/routes/index");
+const apiResponse = require("#app/helpers/apiResponse");
 
 const app = express();
 

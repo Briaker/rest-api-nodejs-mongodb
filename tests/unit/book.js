@@ -17,6 +17,6 @@ const testData = {
   update: {
     description: "Guaranteed to increase your chance to win at Plinko!"
   },
-}
+};
 
 crudGenerator(BookModel, testData);

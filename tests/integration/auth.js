@@ -1,43 +1,36 @@
-const { chai, server, should } = require("../helpers/testConfig");
-const UserModel = require("../models/UserModel");
+const { chai, server } = require("#tests/helpers/testConfig");
+const UserModel = require("#app/models/UserModel");
+const mailer = require("#app/helpers/mailer");
+const dbHandler = require("#tests/helpers/dbHandler");
+const sinon = require("sinon");
 
-const dbHandler = require("../db-handler");
-
-/**
- * Test cases to test all the authentication APIs
- * Covered Routes:
- * (1) Login
- * (2) Register
- * (3) Resend Confirm OTP
- * (4) Verify Confirm OTP
- */
-
-before(async () => {
-  await dbHandler.connect();
-});
-
-afterEach(async () => {
-  await dbHandler.clearDatabase();
-});
-
-after(async () => {
-  await dbHandler.closeDatabase();
-});
+const sandbox = sinon.createSandbox();
 
 describe("Auth", () => {
-  // Before each test we empty the database
-  before((done) => {
-    UserModel.deleteMany({}, (err) => {
-      done();
-    });
+  before(async () => {
+    await dbHandler.clearCollection(UserModel);
+
+    const sendStub = (from, to, subject, html) => Promise.resolve();
+
+    // const stubMailerTransport = require("nodemailer").createTransport("Stub");
+    // const stubMailerTransport = {
+    //   sendMail: (data, callback) => {
+    //     const err = new Error("some error");
+    //     callback(err, null);
+    //   }
+    // };
+    sandbox.replace(mailer, "send", sendStub);
   });
 
-  // Prepare data for testing
+  after(() => {
+    sandbox.restore();
+  });
+
   const testData = {
-    firstName: "test",
-    lastName: "testing",
-    password: "Test@123",
-    email: "maitraysuthar@test12345.com",
+    firstName: "Bob",
+    lastName: "Barker",
+    email: "bob.barker@thepriceisright.com",
+    password: "spadeandneuter"
   };
 
   /*
