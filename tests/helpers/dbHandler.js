@@ -31,5 +31,5 @@ module.exports.clearCollections = async () => {
 };
 
 module.exports.clearCollection = async (Model) => {
-  await Model.deleteMany()
+  await Model.deleteMany();
 };

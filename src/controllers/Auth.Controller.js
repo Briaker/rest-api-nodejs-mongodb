@@ -1,61 +1,22 @@
-const UserModel = require("../models/UserModel");
-const { body, validationResult } = require("express-validator");
-const { sanitizeBody } = require("express-validator");
-//helper file to prepare responses.
-const apiResponse = require("../helpers/apiResponse");
-const utility = require("../helpers/utility");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
-const mailer = require("../helpers/mailer");
-const { constants } = require("../helpers/constants");
+const { validationResult } = require("express-validator");
 
-/**
- * User registration.
- *
- * @param {string}      firstName
- * @param {string}      lastName
- * @param {string}      email
- * @param {string}      password
- *
- * @returns {Object}
- */
+const mailer = require("#app/helpers/mailer");
+const utility = require("#app/helpers/utility");
+const UserModel = require("#app/models/UserModel");
+const apiResponse = require("#app/helpers/apiResponse");
+const { constants } = require("#app/helpers/constants");
+const {
+  registerValidator,
+  loginValidator,
+  confirmValidator,
+  resendConfirmValidator
+} = require("#app/controllers/Auth.Validator");
+
+
 exports.register = [
-  // Validate fields.
-  body("firstName")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("First name must be specified.")
-    .isAlphanumeric()
-    .withMessage("First name has non-alphanumeric characters."),
-  body("lastName")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Last name must be specified.")
-    .isAlphanumeric()
-    .withMessage("Last name has non-alphanumeric characters."),
-  body("email")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Email must be specified.")
-    .isEmail()
-    .withMessage("Email must be a valid email address.")
-    .custom((value) => {
-      return UserModel.findOne({ email: value }).then((user) => {
-        if (user) {
-          return Promise.reject("E-mail already in use");
-        }
-      });
-    }),
-  body("password")
-    .isLength({ min: 6 })
-    .trim()
-    .withMessage("Password must be 6 characters or greater."),
-  // Sanitize fields.
-  sanitizeBody("firstName").escape(),
-  sanitizeBody("lastName").escape(),
-  sanitizeBody("email").escape(),
-  sanitizeBody("password").escape(),
-  // Process request after validation and sanitization.
+  ...registerValidator,
   (req, res) => {
     try {
       // Extract the validation errors from a request.
@@ -123,27 +84,9 @@ exports.register = [
   },
 ];
 
-/**
- * User login.
- *
- * @param {string}      email
- * @param {string}      password
- *
- * @returns {Object}
- */
+
 exports.login = [
-  body("email")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Email must be specified.")
-    .isEmail()
-    .withMessage("Email must be a valid email address."),
-  body("password")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Password must be specified."),
-  sanitizeBody("email").escape(),
-  sanitizeBody("password").escape(),
+  ...loginValidator,
   (req, res) => {
     try {
       const errors = validationResult(req);
@@ -219,24 +162,8 @@ exports.login = [
   },
 ];
 
-/**
- * Verify Confirm otp.
- *
- * @param {string}      email
- * @param {string}      otp
- *
- * @returns {Object}
- */
 exports.verifyConfirm = [
-  body("email")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Email must be specified.")
-    .isEmail()
-    .withMessage("Email must be a valid email address."),
-  body("otp").isLength({ min: 1 }).trim().withMessage("OTP must be specified."),
-  sanitizeBody("email").escape(),
-  sanitizeBody("otp").escape(),
+  ...confirmValidator,
   (req, res) => {
     try {
       const errors = validationResult(req);
@@ -291,21 +218,9 @@ exports.verifyConfirm = [
   },
 ];
 
-/**
- * Resend Confirm otp.
- *
- * @param {string}      email
- *
- * @returns {Object}
- */
+
 exports.resendConfirmOtp = [
-  body("email")
-    .isLength({ min: 1 })
-    .trim()
-    .withMessage("Email must be specified.")
-    .isEmail()
-    .withMessage("Email must be a valid email address."),
-  sanitizeBody("email").escape(),
+  ...resendConfirmValidator,
   (req, res) => {
     try {
       const errors = validationResult(req);

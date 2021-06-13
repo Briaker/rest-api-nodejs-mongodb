@@ -11,6 +11,6 @@ const testData = {
   update: {
     lastName: "Borker"
   },
-}
+};
 
 crudGenerator(UserModel, testData);

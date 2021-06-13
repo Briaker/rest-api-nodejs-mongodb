@@ -2,11 +2,9 @@
 
 const http = require("http");
 
-// const debug = require("debug")("rest-api-nodejs-mongodb:server");
-
-const app = require("../app");
-const { normalizePort, onError, onListening } = require("../helpers/utility");
-const initializeDbConnection = require("../helpers/dbConnection");
+const app = require("#app/app");
+const { normalizePort, onError, onListening } = require("#app/helpers/utility");
+const initializeDbConnection = require("#app/helpers/dbConnection");
 
 initializeDbConnection();
 
@@ -16,5 +14,5 @@ app.set("port", port);
 const server = http.createServer(app);
 
 server.listen(port);
-server.on("error", onError);
-server.on("listening", onListening);
+server.on("error", (error) => { onError(error, server); });
+server.on("listening", () => { onListening(server); });

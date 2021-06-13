@@ -1,24 +1,25 @@
-const { chai, server } = require("#tests/helpers/testConfig");
-const UserModel = require("#app/models/UserModel");
-const mailer = require("#app/helpers/mailer");
-const dbHandler = require("#tests/helpers/dbHandler");
 const sinon = require("sinon");
+const validationResultModule = require("express-validator");
+
+const mailer = require("#app/helpers/mailer");
+const UserModel = require("#app/models/UserModel");
+const dbHandler = require("#tests/helpers/dbHandler");
+const { chai, server } = require("#tests/helpers/testConfig");
 
 const sandbox = sinon.createSandbox();
+
+const testData = {
+  firstName: "Bob",
+  lastName: "Barker",
+  email: "bob.barker@thepriceisright.com",
+  password: "spadeandneuter"
+};
 
 describe("Auth", () => {
   before(async () => {
     await dbHandler.clearCollection(UserModel);
-
+    // eslint-disable-next-line no-unused-vars
     const sendStub = (from, to, subject, html) => Promise.resolve();
-
-    // const stubMailerTransport = require("nodemailer").createTransport("Stub");
-    // const stubMailerTransport = {
-    //   sendMail: (data, callback) => {
-    //     const err = new Error("some error");
-    //     callback(err, null);
-    //   }
-    // };
     sandbox.replace(mailer, "send", sendStub);
   });
 
@@ -26,17 +27,10 @@ describe("Auth", () => {
     sandbox.restore();
   });
 
-  const testData = {
-    firstName: "Bob",
-    lastName: "Barker",
-    email: "bob.barker@thepriceisright.com",
-    password: "spadeandneuter"
-  };
-
   /*
    * Test the /POST route
    */
-  describe("/POST Register", () => {
+  describe("/POST Invalid Register", () => {
     it("It should send validation error for Register", (done) => {
       chai
         .request(server)
@@ -52,7 +46,7 @@ describe("Auth", () => {
   /*
    * Test the /POST route
    */
-  describe("/POST Register", () => {
+  describe("/POST Successful Register", () => {
     it("It should Register user", (done) => {
       chai
         .request(server)
@@ -70,8 +64,23 @@ describe("Auth", () => {
   /*
    * Test the /POST route
    */
-  describe("/POST Login", () => {
-    it("it should Send account not confirm notice.", (done) => {
+  describe("/POST Invalid Existing Register", () => {
+    it("It should send validation error for email already existing", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/register")
+        .send(testData)
+        .end((err, res) => {
+          res.should.have.status(400);
+          res.should.have.nested.property("body.data[0].msg").eql("E-mail already in use");
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Unconfirmed Login", () => {
+    it("it should Send account not confirmed notice.", (done) => {
       chai
         .request(server)
         .post("/api/auth/login")
@@ -86,11 +95,34 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
-  describe("/POST Resend  Confirm OTP", () => {
-    it("It should resend  confirm OTP", (done) => {
+
+  describe("/POST Failed To Save User During OTP", () => {
+    const save_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      save_error_sandbox.replace(UserModel.prototype, "save", (callback) => {callback("ERROR");});
+    });
+
+    after(() => {
+      save_error_sandbox.restore();
+    });
+
+    it("It should notify that there was a server error", (done) => {
+      // const userStub =
+      chai
+        .request(server)
+        .post("/api/auth/resend-verify-otp")
+        .send({ email: testData.email })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Resend Confirm OTP", () => {
+    it("it should resend confirm OTP", (done) => {
       chai
         .request(server)
         .post("/api/auth/resend-verify-otp")
@@ -107,9 +139,31 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
+
+  describe("/POST Verify Confirm OTP Error", () => {
+    const validate_error_sandbox = sinon.createSandbox();
+
+    before(() => {
+      // validate_error_sandbox.stub(validationResult).throws();
+      validate_error_sandbox.stub(validationResultModule, "validationResult").throws();
+    });
+
+    after(() => {
+      validate_error_sandbox.restore();
+    });
+
+    it("It should return a server error", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/verify-otp")
+        .send({ email: testData.email, otp: testData.confirmOTP })
+        .end((err, res) => {
+          res.should.have.status(500);
+          done();
+        });
+    });
+  });
+
   describe("/POST Verify Confirm OTP", () => {
     it("It should verify confirm OTP", (done) => {
       chai
@@ -123,10 +177,38 @@ describe("Auth", () => {
     });
   });
 
-  /*
-   * Test the /POST route
-   */
-  describe("/POST Login", () => {
+
+  describe("/POST Resend Confirmed OTP", () => {
+    it("It should notify that the account is already confirmed", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/resend-verify-otp")
+        .send({ email: testData.email })
+        .end((err, res) => {
+          res.should.have.status(401);
+          res.should.have.nested.property("body.message").eql("Account already confirmed.");
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Invalid Resend Confirmed OTP", () => {
+    it("It should notify that the email provided is invalid", (done) => {
+      chai
+        .request(server)
+        .post("/api/auth/resend-verify-otp")
+        .send({ email: "" })
+        .end((err, res) => {
+          res.should.have.status(400);
+          res.should.have.nested.property("body.data").that.has.lengthOf(2);
+          done();
+        });
+    });
+  });
+
+
+  describe("/POST Invalid Login", () => {
     it("It should send validation error for Login", (done) => {
       chai
         .request(server)
@@ -142,7 +224,7 @@ describe("Auth", () => {
   /*
    * Test the /POST route
    */
-  describe("/POST Login", () => {
+  describe("/POST Bad Login", () => {
     it("it should Send failed user Login", (done) => {
       chai
         .request(server)
@@ -158,7 +240,7 @@ describe("Auth", () => {
   /*
    * Test the /POST route
    */
-  describe("/POST Login", () => {
+  describe("/POST Successful Login", () => {
     it("it should do user Login", (done) => {
       chai
         .request(server)

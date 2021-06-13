@@ -1,12 +1,11 @@
 const dbHandler = require("#tests/helpers/dbHandler");
+require("#tests/helpers/integrationInitializer");
 
 before(async () => {
-  console.log("DB connecting");
   await dbHandler.connect();
 });
 
 after(async () => {
-  console.log("DB closing");
   await dbHandler.closeDatabase();
 });
 

@@ -1,8 +1,6 @@
 const dotenv = require("dotenv");
 dotenv.config();
 
-console.log("dotenv loaded .env", process.env.NODE_ENV);
-
 const path = require("path");
 const cors = require("cors");
 const logger = require("morgan");
